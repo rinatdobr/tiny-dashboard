@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 11)
 
 find_package(X11 REQUIRED)
 
+set(X11_BACKEND_SOURCES
+    windows-backend/src/X11Backend.cpp
+)
+
 set(SOURCES
     src/main.cpp
 )
@@ -14,11 +18,13 @@ set(SPDLOG_DIR third-party/spdlog)
 add_subdirectory(${SPDLOG_DIR} spdlog)
 
 add_executable(tiny-dashboard
+    ${X11_BACKEND_SOURCES}
     ${SOURCES}
 )
 
 target_link_libraries(tiny-dashboard ${X11_LIBRARIES} pthread)
 target_include_directories(tiny-dashboard PRIVATE
     ${X11_INCLUDE_DIR}
+    windows-backend/include
     ${SPDLOG_DIR}/include
 )
