@@ -1,9 +1,57 @@
 #include <X11Backend.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <sstream>
+#include <string>
+#include <iostream>
+#include <cstring>
 
 namespace TDWindows
 {
+
+WindowInfo::WindowInfo()
+ :
+        m_name("undefined"),
+        m_windowChilds(nullptr),
+        m_level(0)
+{ }
+
+WindowInfo::WindowInfo(WindowInfo&& info) : 
+    m_window(info.m_window),
+    m_name(std::move(info.m_name)),
+    m_windowChilds(info.m_windowChilds),
+    m_windowNofChilds(info.m_windowNofChilds),
+    m_level(info.m_level),
+    m_childs(std::move(info.m_childs)),
+    m_pid(info.m_pid)
+{
+    info.m_windowChilds = nullptr;
+}
+
+
+WindowInfo::~WindowInfo()
+{
+    XFree(m_windowChilds);
+}
+
+WindowInfo::operator std::string() const
+{
+    std::ostringstream stream;
+    stream << "\n";
+    for (int i = 0; i < m_level; i++) stream << "\t";
+    stream << "WindowInfo(0x" << std::hex << m_window << std::dec << ")\n";
+    for (int i = 0; i < m_level; i++) stream << "\t";
+    stream << "\tname: " << m_name << "\n";
+    for (int i = 0; i < m_level; i++) stream << "\t";
+    stream << "\tnofChilds: " << m_windowNofChilds;
+    for (int i = 0; i < m_level; i++) stream << "\t";
+    stream << "\tpid: " << m_pid;
+    for (const auto& child : m_childs) {
+        stream << std::string(child);
+    }
+    
+    return stream.str();
+}
 
 X11Backend::X11Backend() :
     m_display(nullptr, XCloseDisplay)
@@ -99,7 +147,10 @@ void X11Backend::workingThread()
         switch (event.type) {
             case ButtonPress: {
                     XButtonEvent* buttonEvent = reinterpret_cast<XButtonEvent*>(&event);
-                    spdlog::trace("Button event: {0}", buttonEvent->button);
+                    spdlog::trace("Button event: {0} on {1}", buttonEvent->button, buttonEvent->subwindow);
+                    WindowInfo wi = getWindowInfo(rootWindow);
+                    // WindowInfo wi = getWindowInfo(buttonEvent->subwindow);
+                    spdlog::trace("{0}", std::string(wi));
                 }
                 break;
             case MotionNotify: {
@@ -155,6 +206,83 @@ void X11Backend::sendDummyEvent()
 
     XFlush(m_display.get());
 }
+
+Window* X11Backend::getWindowChilds(const Window &window, unsigned int& resultLen)
+{
+    spdlog::trace("{0}({1})::{2}()", __FILE__, __LINE__, __func__);
+
+    Window rootWindow;
+    Window parentWindow;
+    Window* childWindows;
+    if (! XQueryTree(m_display.get(), window, &rootWindow, &parentWindow, &childWindows, &resultLen)) {
+        spdlog::error("Can't get window childs");
+        resultLen = 0;
+        return nullptr;
+    }
+
+    spdlog::trace("getWindowChilds(0x{0:x}): resultLen: {1}", window, resultLen);
+
+    return childWindows;
+}
+
+unsigned char* X11Backend::getWindowProperty(const Window &window, const std::string& paramName, unsigned long& resultLen)
+{
+    spdlog::trace("{0}({1})::{2}()", __FILE__, __LINE__, __func__);
+
+    Atom prop = XInternAtom(m_display.get(), paramName.c_str(), False);
+    Atom type;
+    int actualFormatReturn;
+    unsigned long bytesAfterReturn;
+    unsigned char *propReturn;
+    int status = XGetWindowProperty(m_display.get(), window, prop, 0, 1024, False,
+                                    AnyPropertyType, &type,
+                                    &actualFormatReturn, &resultLen, &bytesAfterReturn,
+                                    &propReturn);
+    
+    spdlog::trace("getWindowInfo(0x{0:x}): property: \"{1}\", resultLen: {2}, bytesLeft: {3}", window, paramName, resultLen, bytesAfterReturn);
+    
+    if (status != Success || bytesAfterReturn > 0) {
+        spdlog::error("Can't get window param for the one request");
+        XFree(propReturn);
+        return nullptr;
+    }
+
+    if (resultLen) {
+        spdlog::trace("getWindowInfo(0x{0:x}): value for \"{1}\" is: {2}", window, paramName, propReturn);
+    }
+    
+    return propReturn;
+}
+
+WindowInfo X11Backend::getWindowInfo(const Window &window, const int level)
+{
+    spdlog::trace("{0}({1})::{2}()", __FILE__, __LINE__, __func__);
+
+    unsigned long namePropLen = 0;
+    unsigned char* nameProp = getWindowProperty(window, "WM_NAME", namePropLen);
+
+    unsigned long pidPropLen = 0;
+    unsigned char* pidProp = getWindowProperty(window, "_NET_WM_PID", pidPropLen);
+
+    WindowInfo info;
+    info.m_window = window;
+    info.m_level = level;
+
+    if (namePropLen > 0) info.m_name = std::string(reinterpret_cast<char*>(nameProp));
+    XFree(nameProp);
+    int CARDINAL_SIZE = 4; // 32bit / 8
+    if (pidPropLen > 0) std::memcpy(&info.m_pid, pidProp, CARDINAL_SIZE);
+    XFree(pidProp);
+
+    info.m_windowChilds = getWindowChilds(window, info.m_windowNofChilds);
+
+    for (int i = 0; i < info.m_windowNofChilds; i++) {
+        info.m_childs.push_back(getWindowInfo(info.m_windowChilds[i], level + 1));
+    }
+
+    return info;
+}
+
 
 void X11Backend::setState(const X11BackendState& state)
 {
