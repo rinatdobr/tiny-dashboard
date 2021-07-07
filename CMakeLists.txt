@@ -5,14 +5,14 @@ project(tiny-dashboard)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt5 COMPONENTS Core REQUIRED)
+find_package(Qt5 COMPONENTS Core Qml Quick REQUIRED)
 
 find_package(X11 REQUIRED)
 
 set(X11_BACKEND_SOURCES
-    src/windows-backend/x11/backend.cpp
-    src/windows-backend/x11/window.cpp
-    src/windows-backend/x11/window_info.cpp
+    src/backend/x11/backend.cpp
+    src/backend/x11/window.cpp
+    src/backend/x11/window_info.cpp
 )
 
 set(UI_SOURCES
@@ -26,6 +26,8 @@ set(SOURCES
 qt5_wrap_cpp(SOURCES
 TARGET tiny-dashboard)
 
+qt5_add_resources(SOURCES src/ui/resources.qrc)
+
 set(SPDLOG_DIR third-party/spdlog)
 add_subdirectory(${SPDLOG_DIR} spdlog)
 
@@ -35,12 +37,18 @@ add_executable(tiny-dashboard
     ${SOURCES}
 )
 
-target_link_libraries(tiny-dashboard ${X11_LIBRARIES} pthread Qt5::Core)
+target_link_libraries(tiny-dashboard ${X11_LIBRARIES} pthread Qt5::Core Qt5::Qml Qt5::Quick)
 target_include_directories(tiny-dashboard PRIVATE
     ${X11_INCLUDE_DIR}
     src
     src/ui
-    src/windows-backend
+    src/backend
     ${SPDLOG_DIR}/include
     ${Qt5Core_INCLUDE_DIRS}
+    ${Qt5Gui_INCLUDE_DIRS}
 )
+
+install(FILES src/ui/center.qml
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(TARGETS tiny-dashboard DESTINATION ${CMAKE_INSTALL_BINDIR})

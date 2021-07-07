@@ -1,7 +1,12 @@
+#include <QGuiApplication>
+#include <QQuickView>
+#include <QtQml>
+
 #include "ui/centre.h"
-#include "windows-backend/i_window.h"
-#include "windows-backend/i_windows_backend.h"
-#include "windows-backend/x11/backend.h"
+#include "backend/i_window.h"
+#include "backend/i_windows_backend.h"
+#include "backend/x11/backend.h"
+
 #include <iostream>
 #include <memory>
 
@@ -17,17 +22,14 @@ int main(int argc, char **argv)
     std::unique_ptr<tdwindows::IWindowsBackend> windowsBackend(new x11::Backend());
     windowsBackend->start();
 
-    std::string command;
-    while (true) {
-        std::getline(std::cin, command);
+    QScopedPointer<QGuiApplication> app(new QGuiApplication(argc, argv));
+    QQmlApplicationEngine engine;
+    engine.load(QUrl("qrc:/tiny-dashboard.qml"));
+    if (engine.rootObjects().isEmpty())
+        return -1;
 
-        if (!command.compare("q")) {
-            windowsBackend->stop();
-            break;
-        }
-    }
-
+    int rc = app->exec();
+    windowsBackend->stop();
     spdlog::info("Bye-bye!");
-
-    return 0;
+    return rc;
 }
