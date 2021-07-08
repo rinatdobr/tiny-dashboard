@@ -3,6 +3,7 @@
 #include "window.h"
 
 #include <X11/Xatom.h>
+#include <X11/extensions/XInput2.h>
 #include <cstring>
 #include <iostream>
 #include <sstream>
@@ -108,59 +109,69 @@ void Backend::workingThread()
     spdlog::info("Started X11 working thread");
 
     x11Window rootWindow = XDefaultRootWindow(m_display.get());
-    unsigned int eventMask = ButtonPressMask | PointerMotionMask;
-    XEvent event;
+    XIEventMask masks[2];
+    masks[0].deviceid = XIAllDevices;
+    masks[0].mask_len = XIMaskLen(XI_LASTEVENT);
+    std::vector<unsigned char> maskValues0(masks[0].mask_len);
+    masks[0].mask = maskValues0.data();
+    XISetMask(masks[0].mask, XI_ButtonPress);
+    XISetMask(masks[0].mask, XI_ButtonRelease);
+    XISetMask(masks[0].mask, XI_KeyPress);
+    XISetMask(masks[0].mask, XI_KeyRelease);
+    XISetMask(masks[0].mask, XI_Motion);
+    // XISetMask(masks[0].mask, XI_DeviceChanged);
+    // XISetMask(masks[0].mask, XI_Enter);
+    // XISetMask(masks[0].mask, XI_Leave);
+    // XISetMask(masks[0].mask, XI_FocusIn);
+    // XISetMask(masks[0].mask, XI_FocusOut);
 
-    // grab pointer
-    if (XGrabPointer(m_display.get(),
-                     rootWindow,
-                     False,
-                     eventMask,
-                     GrabModeAsync,
-                     GrabModeAsync,
-                     None,
-                     None,
-                     CurrentTime)
-        != GrabSuccess) {
-        spdlog::error("workingThread: can't grab x11 pointer");
-        setState(State::Invalid);
-        m_display.reset();
-        return;
-    }
+    masks[1].deviceid = XIAllMasterDevices;
+    masks[1].mask_len = XIMaskLen(XI_LASTEVENT);
+    std::vector<unsigned char> maskValues1(masks[1].mask_len);
+    masks[1].mask = maskValues1.data();
+    // XISetMask(masks[1].mask, XI_RawKeyPress);
+    // XISetMask(masks[1].mask, XI_RawKeyRelease);
+    // XISetMask(masks[1].mask, XI_RawButtonPress);
+    // XISetMask(masks[1].mask, XI_RawButtonRelease);
+    // XISetMask(masks[1].mask, XI_RawMotion);
 
-    // select events we are interested in
-    XSelectInput(m_display.get(), rootWindow, eventMask);
+    XISelectEvents(m_display.get(), rootWindow, masks, 2);
+    XSync(m_display.get(), False);
 
     // handle events
     while (m_workingThreadFlag) {
         // get the next event
+        XEvent event;
+        XGenericEventCookie *cookie = (XGenericEventCookie *) &event.xcookie;
         XNextEvent(m_display.get(), &event);
-        switch (event.type) {
-        case ButtonPress: {
-            XButtonEvent *buttonEvent = reinterpret_cast<XButtonEvent *>(&event);
-            spdlog::trace("Button event: {0} on 0x{1:x}",
-                          buttonEvent->button,
-                          buttonEvent->subwindow);
-            WindowInfo rootW = getWindowInfo(buttonEvent->root);
-            spdlog::trace("rootW: {0}", std::string(rootW));
-            WindowInfo wW = getWindowInfo(buttonEvent->window);
-            spdlog::trace("wW: {0}", std::string(wW));
-            WindowInfo subW = getWindowInfo(buttonEvent->subwindow);
-            spdlog::trace("subW: {0}", std::string(subW));
-        } break;
-        case MotionNotify: {
-            XMotionEvent *motionEvent = reinterpret_cast<XMotionEvent *>(&event);
-            spdlog::trace("Motion event: x: {0}, y: {1}", motionEvent->x, motionEvent->y);
-            // WindowInfo rootW = getWindowInfo(motionEvent->window);
-            // spdlog::trace("root: {0}", std::string(rootW));
-            // WindowInfo subW = getWindowInfo(motionEvent->subwindow);
-            // spdlog::trace("subW: {0}", std::string(subW));
-        } break;
+        if (XGetEventData(m_display.get(), cookie) && cookie->type == GenericEvent) {
+            XIDeviceEvent *xiEvent = static_cast<XIDeviceEvent *>(cookie->data);
+            if (!xiEvent) {
+                continue;
+            }
+            switch (cookie->evtype) {
+            case XI_ButtonPress: {
+                spdlog::trace("Button event on 0x{0:x}", xiEvent->event);
+                WindowInfo rootW = getWindowInfo(xiEvent->root);
+                spdlog::trace("rootW: {0}", std::string(rootW));
+                WindowInfo wW = getWindowInfo(xiEvent->event);
+                spdlog::trace("wW: {0}", std::string(wW));
+                WindowInfo subW = getWindowInfo(xiEvent->child);
+                spdlog::trace("subW: {0}", std::string(subW));
+            } break;
+            case XI_Motion: {
+                spdlog::trace("Motion event: x: {0}, y: {1}", xiEvent->event_x, xiEvent->event_y);
+                // WindowInfo rootW = getWindowInfo(motionEvent->window);
+                // spdlog::trace("root: {0}", std::string(rootW));
+                // WindowInfo subW = getWindowInfo(motionEvent->subwindow);
+                // spdlog::trace("subW: {0}", std::string(subW));
+            } break;
+            default:
+                spdlog::trace("UNDEFINED event");
+                break;
+            }
         }
     }
-
-    // return pointer
-    XUngrabPointer(m_display.get(), CurrentTime);
     m_display.reset();
 
     spdlog::info("X11 backend working thread finished");

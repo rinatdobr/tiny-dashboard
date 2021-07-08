@@ -37,7 +37,7 @@ add_executable(tiny-dashboard
     ${SOURCES}
 )
 
-target_link_libraries(tiny-dashboard ${X11_LIBRARIES} pthread Qt5::Core Qt5::Qml Qt5::Quick)
+target_link_libraries(tiny-dashboard ${X11_LIBRARIES} ${X11_Xi_LIB} pthread Qt5::Core Qt5::Qml Qt5::Quick)
 target_include_directories(tiny-dashboard PRIVATE
     ${X11_INCLUDE_DIR}
     src
