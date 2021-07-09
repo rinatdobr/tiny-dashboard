@@ -2,10 +2,11 @@
 #include <QQuickView>
 #include <QtQml>
 
-#include "ui/centre.h"
 #include "backend/i_window.h"
 #include "backend/i_windows_backend.h"
 #include "backend/x11/backend.h"
+#include "ui/centre.h"
+#include "ui/mouse_tracker_proxy.h"
 
 #include <iostream>
 #include <memory>
@@ -21,6 +22,11 @@ int main(int argc, char **argv)
 
     std::unique_ptr<tdwindows::IWindowsBackend> windowsBackend(new x11::Backend());
     windowsBackend->start();
+    ui::MouseTrackerProxy mouseTrackerProxy;
+    tdwindows::MouseTrackerCb mouseTrackerCb = [&mouseTrackerProxy](int x, int y) {
+        mouseTrackerProxy.mouseGlobalPositionCallback(x, y);
+    };
+    windowsBackend->setMouseTrackerCallback(mouseTrackerCb);
 
     QScopedPointer<QGuiApplication> app(new QGuiApplication(argc, argv));
     QQmlApplicationEngine engine;

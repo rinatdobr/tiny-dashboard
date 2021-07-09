@@ -17,6 +17,12 @@ set(X11_BACKEND_SOURCES
 
 set(UI_SOURCES
     src/ui/centre.cpp
+    src/ui/mouse_tracker_proxy.cpp
+)
+
+set(UI_HEADERS
+    src/ui/centre.h
+    src/ui/mouse_tracker_proxy.h
 )
 
 set(SOURCES
@@ -24,6 +30,7 @@ set(SOURCES
 )
 
 qt5_wrap_cpp(SOURCES
+    ${UI_HEADERS}
 TARGET tiny-dashboard)
 
 qt5_add_resources(SOURCES src/ui/resources.qrc)
@@ -48,7 +55,7 @@ target_include_directories(tiny-dashboard PRIVATE
     ${Qt5Gui_INCLUDE_DIRS}
 )
 
-install(FILES src/ui/center.qml
+install(FILES src/ui/Center.qml
         DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 install(TARGETS tiny-dashboard DESTINATION ${CMAKE_INSTALL_BINDIR})

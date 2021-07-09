@@ -10,10 +10,7 @@ ApplicationWindow {
     visible: true
     title: "Tiny dashboard"
 
-    Rectangle {
-        width: 1024
-        height: 600
-        color: "#03e3fc"
-        opacity: 0.5
+    Center {
+
     }
 }

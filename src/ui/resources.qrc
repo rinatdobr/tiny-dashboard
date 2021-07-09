@@ -1,6 +1,6 @@
 <!DOCTYPE RCC><RCC version="1.0">
     <qresource>
-        <file>center.qml</file>
+        <file>Center.qml</file>
         <file>tiny-dashboard.qml</file>
     </qresource>
 </RCC>

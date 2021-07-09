@@ -2,9 +2,10 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 
 Rectangle {
-    width: 200
+    width: 100
     height: 100
-    color: "red"
+    color: "blue"
+    radius: width * 0.5
 
     Text {
         anchors.centerIn: parent

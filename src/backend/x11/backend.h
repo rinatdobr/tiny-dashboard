@@ -26,6 +26,7 @@ public:
     // IWindowsBackend
     bool start() override;
     void stop() override;
+    void setMouseTrackerCallback(tdwindows::MouseTrackerCb callBack);
 
     enum class State { Invalid, Ready, Working };
 

@@ -79,6 +79,13 @@ void Backend::stop()
     spdlog::info("X11 backend stopped");
 }
 
+void Backend::setMouseTrackerCallback(tdwindows::MouseTrackerCb callBack)
+{
+    LOG_FUNC_ENTRY();
+
+    m_mouseTrackerCb.swap(callBack);
+}
+
 void Backend::workingThread()
 {
     LOG_FUNC_ENTRY();
@@ -161,6 +168,10 @@ void Backend::workingThread()
             } break;
             case XI_Motion: {
                 spdlog::trace("Motion event: x: {0}, y: {1}", xiEvent->event_x, xiEvent->event_y);
+                if (m_mouseTrackerCb) {
+                    spdlog::trace("Mouse tracker was called");
+                    m_mouseTrackerCb(xiEvent->event_x, xiEvent->event_y);
+                }
                 // WindowInfo rootW = getWindowInfo(motionEvent->window);
                 // spdlog::trace("root: {0}", std::string(rootW));
                 // WindowInfo subW = getWindowInfo(motionEvent->subwindow);

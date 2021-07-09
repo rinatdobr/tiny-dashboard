@@ -1,11 +1,11 @@
+#pragma once
+
 #include "i_window.h"
 
 #include <memory>
 extern "C" {
 #include <X11/Xlib.h>
 }
-
-#pragma once
 
 namespace x11 {
 
