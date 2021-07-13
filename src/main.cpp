@@ -20,19 +20,28 @@ int main(int argc, char **argv)
 
     spdlog::info("Welcome to tiny-dashboard");
 
-    std::unique_ptr<tdwindows::IWindowsBackend> windowsBackend(new x11::Backend());
-    windowsBackend->start();
+    // mouse tracker setup
     ui::MouseTrackerProxy mouseTrackerProxy;
     tdwindows::MouseTrackerCb mouseTrackerCb = [&mouseTrackerProxy](int x, int y) {
         mouseTrackerProxy.mouseGlobalPositionCallback(x, y);
     };
-    windowsBackend->setMouseTrackerCallback(mouseTrackerCb);
 
+    // windows backend setup
+    std::unique_ptr<tdwindows::IWindowsBackend> windowsBackend(new x11::Backend());
+    windowsBackend->setMouseTrackerCallback(mouseTrackerCb);
+    if (!windowsBackend->start()) {
+        return EXIT_FAILURE;
+    }
+
+    // application window
     QScopedPointer<QGuiApplication> app(new QGuiApplication(argc, argv));
     QQmlApplicationEngine engine;
     engine.load(QUrl("qrc:/tiny-dashboard.qml"));
-    if (engine.rootObjects().isEmpty())
+    if (engine.rootObjects().isEmpty()) {
         return -1;
+    }
+    engine.rootContext()->setContextProperty(QStringLiteral("mouseTrackerProxy"),
+                                             &mouseTrackerProxy);
 
     int rc = app->exec();
     windowsBackend->stop();

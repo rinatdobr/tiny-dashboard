@@ -35,6 +35,11 @@ bool Backend::start()
         return false;
     }
 
+    if (!m_mouseTrackerCb) {
+        spdlog::error("start: mouse tracker callback was not set");
+        return false;
+    }
+
     spdlog::info("X11 backend is starting...");
 
     std::unique_lock<std::mutex> _ul(m_workingThreadStartMutex);
@@ -112,6 +117,8 @@ void Backend::workingThread()
         m_workingThreadFlag = true;
     }
     m_workingThreadStartNotifier.notify_one();
+
+    getMousePosition();
 
     spdlog::info("Started X11 working thread");
 
@@ -329,6 +336,42 @@ WindowInfo Backend::getWindowInfo(const x11Window &window, const int level)
     info.setSubWindows(subWindowsInfo);
 
     return info;
+}
+
+void Backend::getMousePosition()
+{
+    LOG_FUNC_ENTRY();
+
+    x11Window window_returned;
+    int root_x;
+    int root_y;
+    int win_x;
+    int win_y;
+    unsigned int mask_return;
+    x11Window rootWindow = XDefaultRootWindow(m_display.get());
+
+    if (XQueryPointer(m_display.get(),
+                      rootWindow,
+                      &window_returned,
+                      &window_returned,
+                      &root_x,
+                      &root_y,
+                      &win_x,
+                      &win_y,
+                      &mask_return)) {
+        spdlog::trace("root_x: {0}, root_y: {1}, win_x: {2}, win_y: {3}",
+                      root_x,
+                      root_y,
+                      win_x,
+                      win_y);
+        if (m_mouseTrackerCb) {
+            spdlog::trace("Mouse tracker was called");
+            m_mouseTrackerCb(root_x, root_y);
+        }
+
+    } else {
+        spdlog::error("getMousePosition: can't get mouse position");
+    }
 }
 
 void Backend::setState(const State &state)

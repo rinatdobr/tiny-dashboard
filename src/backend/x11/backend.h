@@ -49,6 +49,7 @@ private:
     std::vector<char> getWindowProperty(const x11Window &window,
                                         const std::string &paramName);
     WindowInfo getWindowInfo(const x11Window &window, const int level = 0);
+    void getMousePosition();
     void setState(const State &state);
     bool isReady();
     bool isWorking();
