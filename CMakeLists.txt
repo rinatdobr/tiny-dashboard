@@ -35,8 +35,12 @@ TARGET tiny-dashboard)
 
 qt5_add_resources(SOURCES src/ui/resources.qrc)
 
+set(TD_DIR ${CMAKE_SOURCE_DIR})
+
 set(SPDLOG_DIR third-party/spdlog)
 add_subdirectory(${SPDLOG_DIR} spdlog)
+set(MINRESCLO_DIR src/modules/minresclo)
+add_subdirectory(${MINRESCLO_DIR} minresclo)
 
 add_executable(tiny-dashboard
     ${X11_BACKEND_SOURCES}
